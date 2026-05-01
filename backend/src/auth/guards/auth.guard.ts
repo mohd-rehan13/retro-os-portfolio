@@ -17,7 +17,10 @@ export class AuthGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<Request>();
-    const sessionToken = request.cookies['next-auth.session-token'] || request.cookies['__Secure-next-auth.session-token'];
+    const sessionToken = 
+      request.cookies['next-auth.session-token'] || 
+      request.cookies['__Secure-next-auth.session-token'] ||
+      request.headers['x-session-token'];
 
     if (!sessionToken) {
       throw new UnauthorizedException('No session token found');
@@ -25,7 +28,13 @@ export class AuthGuard implements CanActivate {
 
     try {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      const sessionTokenKey = request.cookies['__Secure-next-auth.session-token'] ? '__Secure-next-auth.session-token' : 'next-auth.session-token';
+      
+      // Determine which cookie name to use when forwarding to the frontend session API
+      let sessionTokenKey = 'next-auth.session-token';
+      if (request.cookies['__Secure-next-auth.session-token'] || frontendUrl.startsWith('https')) {
+        sessionTokenKey = '__Secure-next-auth.session-token';
+      }
+
       const response = await fetch(`${frontendUrl}/api/auth/session`, {
         headers: {
           cookie: `${sessionTokenKey}=${sessionToken}`,
