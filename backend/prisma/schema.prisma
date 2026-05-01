@@ -70,3 +70,13 @@ model Message {
   user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt     DateTime  @default(now())
 }
+
+model Milestone {
+  id            String    @id @default(uuid())
+  year          String
+  title         String
+  description   String    @db.Text
+  active        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}

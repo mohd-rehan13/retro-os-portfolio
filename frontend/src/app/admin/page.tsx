@@ -29,7 +29,7 @@ import {
 
 const API = "/api/proxy";
 
-type Tab = "overview" | "users" | "posts" | "messages";
+type Tab = "overview" | "users" | "posts" | "messages" | "milestones";
 type ToastType = "success" | "error" | "info";
 
 interface Toast {
@@ -78,6 +78,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
+  const [milestones, setMilestones] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -89,7 +90,9 @@ export default function AdminDashboard() {
   // Modals & Notifications
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [editingPost, setEditingPost] = useState<any | null>(null);
+  const [editingMilestone, setEditingMilestone] = useState<any | null>(null);
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
+  const [milestoneToDelete, setMilestoneToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   /* ── Notification Helper ────────────────────────── */
@@ -104,16 +107,18 @@ export default function AdminDashboard() {
   /* ── Fetch all data ──────────────────────────────── */
   async function loadData() {
     try {
-      const [uRes, mRes, pRes, aRes] = await Promise.all([
+      const [uRes, mRes, pRes, aRes, miRes] = await Promise.all([
         fetch(`${API}/users`, { credentials: "include" }),
         fetch(`${API}/messages`, { credentials: "include" }),
         fetch(`${API}/posts/admin/all`, { credentials: "include" }),
         fetch(`${API}/users/analytics`, { credentials: "include" }),
+        fetch(`${API}/milestones`, { credentials: "include" }),
       ]);
       if (uRes.ok) setUsers(await uRes.json());
       if (mRes.ok) setMessages(await mRes.json());
       if (pRes.ok) setPosts(await pRes.json());
       if (aRes.ok) setAnalytics(await aRes.json());
+      if (miRes.ok) setMilestones(await miRes.json());
     } catch (e) {
       notify("CONNECTION_FAILURE: SYSTEM_OFFLINE", "error");
     } finally {
@@ -188,7 +193,6 @@ export default function AdminDashboard() {
         dataToSave.slug = dataToSave.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
       }
       
-      // Default values for new posts
       if (isNew) {
         dataToSave.readTime = dataToSave.readTime || "5M";
         dataToSave.category = dataToSave.category || "GENERAL";
@@ -221,6 +225,58 @@ export default function AdminDashboard() {
     }
   }
 
+  async function saveMilestone(m: any) {
+    try {
+      const isNew = !m.id;
+      const url = isNew ? `${API}/milestones` : `${API}/milestones/${m.id}`;
+      const method = isNew ? "POST" : "PATCH";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(m),
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        const saved = await res.json();
+        if (isNew) {
+          setMilestones([saved, ...milestones]);
+        } else {
+          setMilestones(milestones.map(x => x.id === m.id ? saved : x));
+        }
+        setEditingMilestone(null);
+        notify(isNew ? "JOURNEY_LOGGED: MILESTONE_CREATED" : "JOURNEY_UPDATED: MILESTONE_SAVED");
+      } else {
+        notify("SAVE_FAILED", "error");
+      }
+    } catch (e) {
+      notify("CONNECTION_ERROR", "error");
+    }
+  }
+
+  async function confirmDeleteMilestone() {
+    if (!milestoneToDelete) return;
+    setIsDeleting(milestoneToDelete);
+    try {
+      const res = await fetch(`${API}/milestones/${milestoneToDelete}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.ok) {
+        setMilestones(milestones.filter(m => m.id !== milestoneToDelete));
+        notify("DATA_DELETED: MILESTONE_REMOVED");
+      } else {
+        notify("ERROR_DELETING_MILESTONE", "error");
+      }
+    } catch (e) {
+      notify("CONNECTION_ERROR", "error");
+    } finally {
+      setIsDeleting(null);
+      setMilestoneToDelete(null);
+    }
+  }
+
   function initNewPost() {
     setEditingPost({
       title: "",
@@ -228,6 +284,15 @@ export default function AdminDashboard() {
       category: "GENERAL",
       published: false,
       readTime: "5M"
+    });
+  }
+
+  function initNewMilestone() {
+    setEditingMilestone({
+      year: new Date().getFullYear().toString(),
+      title: "",
+      description: "",
+      active: false
     });
   }
 
@@ -250,6 +315,15 @@ export default function AdminDashboard() {
     return [...list].sort((a, b) => sortDir === "desc" ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [posts, search, sortDir]);
 
+  const filteredMilestones = useMemo(() => {
+    let list = milestones;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter((m) => m.title?.toLowerCase().includes(q) || m.year.includes(q));
+    }
+    return [...list].sort((a, b) => sortDir === "desc" ? b.year.localeCompare(a.year) : a.year.localeCompare(b.year));
+  }, [milestones, search, sortDir]);
+
   const filteredMessages = useMemo(() => {
     let list = messages;
     if (search) {
@@ -266,6 +340,7 @@ export default function AdminDashboard() {
     { id: "overview", label: "OVERVIEW", icon: <Activity size={16} />, count: 0 },
     { id: "users", label: "USERS", icon: <Users size={16} />, count: users.length },
     { id: "posts", label: "POSTS", icon: <FileText size={16} />, count: posts.length },
+    { id: "milestones", label: "JOURNEY", icon: <TrendingUp size={16} />, count: milestones.length },
     { id: "messages", label: "MESSAGES", icon: <Mail size={16} />, count: messages.length },
   ];
 
@@ -336,6 +411,11 @@ export default function AdminDashboard() {
               + NEW_ENTRY
             </button>
           )}
+          {activeTab === "milestones" && (
+            <button onClick={initNewMilestone} className="bg-brand-cyan text-black px-4 py-2 text-sm font-bold tracking-widest hover:bg-white transition-colors uppercase">
+              + NEW_MILESTONE
+            </button>
+          )}
         </motion.div>
       )}
 
@@ -352,8 +432,8 @@ export default function AdminDashboard() {
                 {[
                   { label: "USERS.COUNT", value: analytics?.totalUsers || users.length, icon: <Users size={20} />, accent: "text-brand-cyan" },
                   { label: "POSTS.TOTAL", value: analytics?.totalPosts || posts.length, icon: <FileText size={20} />, accent: "text-brand-cyan" },
+                  { label: "JOURNEY.LOGS", value: milestones.length, icon: <TrendingUp size={20} />, accent: "text-brand-cyan" },
                   { label: "MSGS.INBOX", value: analytics?.totalMessages || messages.length, icon: <Mail size={20} />, accent: "text-brand-purple" },
-                  { label: "SYS.STATUS", value: "ONLINE", icon: <Activity size={20} />, accent: "text-brand-cyan" },
                 ].map((s, i) => (
                   <div key={i} className="border-2 border-brand-cyan/30 p-4 bg-black/50 hover:border-brand-cyan transition-all group">
                     <div className="flex items-center justify-between mb-3 text-brand-cyan/50 text-xs tracking-widest">
@@ -374,9 +454,9 @@ export default function AdminDashboard() {
               <div className="border-2 border-brand-cyan/30 p-5 bg-black/50">
                 <h3 className="text-sm tracking-widest text-brand-cyan/60 border-b border-brand-cyan/20 pb-2 mb-3 flex items-center gap-2"><Clock size={14} /> RECENT_ACTIVITY.LOG</h3>
                 <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                  {[...users, ...posts, ...messages].filter(x => x.createdAt).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10).map((item, i) => (
+                  {[...users, ...posts, ...messages, ...milestones].filter(x => x.createdAt).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10).map((item, i) => (
                     <div key={i} className="flex items-center gap-3 text-sm py-1.5 border-b border-brand-cyan/10 last:border-0 uppercase">
-                      <span className="text-brand-cyan/30">{item.role ? <Shield size={12} /> : item.title ? <FileText size={12} /> : <Mail size={12} />}</span>
+                      <span className="text-brand-cyan/30">{item.role ? <Shield size={12} /> : item.year ? <TrendingUp size={12} /> : item.title ? <FileText size={12} /> : <Mail size={12} />}</span>
                       <span className="text-brand-cyan/80 truncate flex-1">{item.name || item.title}</span>
                       <span className="text-brand-cyan/30 text-xs whitespace-nowrap">{timeAgo(item.createdAt)}</span>
                     </div>
@@ -448,6 +528,37 @@ export default function AdminDashboard() {
             </motion.div>
           )}
 
+          {/* MILESTONES */}
+          {activeTab === "milestones" && (
+            <motion.div key="milestones" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
+              <div className="text-brand-cyan/50 text-xs tracking-widest uppercase">JOURNEY_MILESTONES.DB — {filteredMilestones.length} RECORDS</div>
+              {filteredMilestones.map((m, i) => (
+                <div key={m.id || i} className="border-2 border-brand-cyan/20 p-4 bg-black/50 hover:border-brand-cyan/40 transition-all flex justify-between items-start gap-4">
+                  <div className="flex-1 min-w-0 uppercase">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="text-lg text-brand-cyan truncate">&gt; {m.title}</h3>
+                      <span className={`text-[10px] px-1.5 border ${m.active ? "border-brand-purple/40 text-brand-purple" : "border-brand-cyan/20 text-brand-cyan/40"}`}>
+                        {m.active ? "ACTIVE" : "HISTORICAL"}
+                      </span>
+                    </div>
+                    <div className="text-brand-cyan/40 text-xs flex gap-4">
+                      <span className="text-brand-cyan font-bold">{m.year}</span>
+                      <span className="truncate">{m.description}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setEditingMilestone(m)} className="p-2 border border-brand-cyan/30 hover:border-brand-cyan hover:bg-brand-cyan/10 text-brand-cyan transition-colors">
+                      <Edit3 size={16} />
+                    </button>
+                    <button onClick={() => setMilestoneToDelete(m.id)} className="p-2 border border-red-900/50 hover:border-red-500 hover:bg-red-500/10 text-red-500/70 hover:text-red-500 transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          )}
+
           {/* MESSAGES */}
           {activeTab === "messages" && (
             <motion.div key="messages" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
@@ -483,16 +594,14 @@ export default function AdminDashboard() {
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingPost(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
             <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative w-full max-w-2xl bg-brand-dark border-2 border-brand-cyan shadow-[0_0_50px_rgba(167,139,250,0.2)] overflow-hidden rounded-lg">
-              {/* Modal Header */}
               <div className="bg-brand-cyan text-black px-4 py-2 flex items-center justify-between font-vt323 tracking-widest text-lg uppercase">
-                <span>&gt; {editingPost.id ? "EDIT_RESOURCE" : "CREATE_NEW_RESOURCE"}: {editingPost.slug || "ENTRY"}</span>
+                <span>&gt; {editingPost.id ? "EDIT_POST" : "CREATE_POST"}</span>
                 <button onClick={() => setEditingPost(null)}><X size={18} /></button>
               </div>
-              {/* Modal Body */}
               <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar uppercase">
                 <div className="space-y-1">
-                  <label className="text-[10px] text-brand-cyan/60 tracking-widest">RESOURCE_TITLE</label>
-                  <input type="text" value={editingPost.title} onChange={(e) => setEditingPost({...editingPost, title: e.target.value})} className="w-full bg-black/40 border border-brand-cyan/30 p-2 text-brand-cyan focus:outline-none focus:border-brand-cyan" placeholder="ENTER_TITLE..." />
+                  <label className="text-[10px] text-brand-cyan/60 tracking-widest">TITLE</label>
+                  <input type="text" value={editingPost.title} onChange={(e) => setEditingPost({...editingPost, title: e.target.value})} className="w-full bg-black/40 border border-brand-cyan/30 p-2 text-brand-cyan focus:outline-none focus:border-brand-cyan" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -500,23 +609,66 @@ export default function AdminDashboard() {
                     <input type="text" value={editingPost.category} onChange={(e) => setEditingPost({...editingPost, category: e.target.value})} className="w-full bg-black/40 border border-brand-cyan/30 p-2 text-brand-cyan focus:outline-none focus:border-brand-cyan" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] text-brand-cyan/60 tracking-widest">VISIBILITY_STATE</label>
-                    <select value={editingPost.published ? "true" : "false"} onChange={(e) => setEditingPost({...editingPost, published: e.target.value === "true"})} className="w-full bg-black/40 border border-brand-cyan/30 p-2 text-brand-cyan focus:outline-none focus:border-brand-cyan appearance-none">
-                      <option value="true">LIVE_PRODUCTION</option>
-                      <option value="false">LOCAL_DRAFT</option>
+                    <label className="text-[10px] text-brand-cyan/60 tracking-widest">STATUS</label>
+                    <select value={editingPost.published ? "true" : "false"} onChange={(e) => setEditingPost({...editingPost, published: e.target.value === "true"})} className="w-full bg-black/40 border border-brand-cyan/30 p-2 text-brand-cyan focus:outline-none focus:border-brand-cyan">
+                      <option value="true">PUBLISHED</option>
+                      <option value="false">DRAFT</option>
                     </select>
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-brand-cyan/60 tracking-widest">CONTENT_BODY (MARKDOWN_SUPPORTED)</label>
-                  <textarea rows={10} value={editingPost.content} onChange={(e) => setEditingPost({...editingPost, content: e.target.value})} className="w-full bg-black/40 border border-brand-cyan/30 p-2 text-brand-cyan focus:outline-none focus:border-brand-cyan font-mono text-sm leading-relaxed" placeholder="START_TYPING..." />
+                  <label className="text-[10px] text-brand-cyan/60 tracking-widest">CONTENT</label>
+                  <textarea rows={10} value={editingPost.content} onChange={(e) => setEditingPost({...editingPost, content: e.target.value})} className="w-full bg-black/40 border border-brand-cyan/30 p-2 text-brand-cyan focus:outline-none focus:border-brand-cyan font-mono text-sm" />
                 </div>
               </div>
-              {/* Modal Footer */}
               <div className="p-4 bg-brand-cyan/5 border-t border-brand-cyan/20 flex justify-end gap-3">
-                <button onClick={() => setEditingPost(null)} className="px-6 py-2 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 uppercase tracking-widest text-sm">CANCEL</button>
-                <button onClick={() => savePost(editingPost)} className="px-6 py-2 bg-brand-cyan text-black hover:bg-white transition-colors flex items-center gap-2 uppercase tracking-widest text-sm font-bold">
-                  <Save size={16} /> {editingPost.id ? "COMMIT_CHANGES" : "CREATE_ENTRY"}
+                <button onClick={() => setEditingPost(null)} className="px-6 py-2 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 uppercase text-sm">CANCEL</button>
+                <button onClick={() => savePost(editingPost)} className="px-6 py-2 bg-brand-cyan text-black hover:bg-white transition-colors flex items-center gap-2 text-sm font-bold">
+                  <Save size={16} /> SAVE
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Edit/Create Milestone Modal ────────────────── */}
+      <AnimatePresence>
+        {editingMilestone && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingMilestone(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative w-full max-w-xl bg-brand-dark border-2 border-brand-purple shadow-[0_0_50px_rgba(245,158,11,0.2)] overflow-hidden rounded-lg">
+              <div className="bg-brand-purple text-black px-4 py-2 flex items-center justify-between font-vt323 tracking-widest text-lg uppercase">
+                <span>&gt; {editingMilestone.id ? "EDIT_MILESTONE" : "CREATE_MILESTONE"}</span>
+                <button onClick={() => setEditingMilestone(null)}><X size={18} /></button>
+              </div>
+              <div className="p-6 space-y-4 uppercase">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-brand-purple/60 tracking-widest">YEAR_STAMP</label>
+                    <input type="text" value={editingMilestone.year} onChange={(e) => setEditingMilestone({...editingMilestone, year: e.target.value})} className="w-full bg-black/40 border border-brand-purple/30 p-2 text-brand-purple focus:outline-none focus:border-brand-purple" placeholder="YYYY" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-brand-purple/60 tracking-widest">SYSTEM_STATE</label>
+                    <select value={editingMilestone.active ? "true" : "false"} onChange={(e) => setEditingMilestone({...editingMilestone, active: e.target.value === "true"})} className="w-full bg-black/40 border border-brand-purple/30 p-2 text-brand-purple focus:outline-none focus:border-brand-purple">
+                      <option value="true">ACTIVE_NOW</option>
+                      <option value="false">HISTORICAL</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-brand-purple/60 tracking-widest">EVENT_TITLE</label>
+                  <input type="text" value={editingMilestone.title} onChange={(e) => setEditingMilestone({...editingMilestone, title: e.target.value})} className="w-full bg-black/40 border border-brand-purple/30 p-2 text-brand-purple focus:outline-none focus:border-brand-purple" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-brand-purple/60 tracking-widest">DESCRIPTION_LOG</label>
+                  <textarea rows={4} value={editingMilestone.description} onChange={(e) => setEditingMilestone({...editingMilestone, description: e.target.value})} className="w-full bg-black/40 border border-brand-purple/30 p-2 text-brand-purple focus:outline-none focus:border-brand-purple font-vt323 text-lg leading-relaxed" />
+                </div>
+              </div>
+              <div className="p-4 bg-brand-purple/5 border-t border-brand-purple/20 flex justify-end gap-3">
+                <button onClick={() => setEditingMilestone(null)} className="px-6 py-2 border border-brand-purple/30 text-brand-purple hover:bg-brand-purple/10 uppercase text-sm">CANCEL</button>
+                <button onClick={() => saveMilestone(editingMilestone)} className="px-6 py-2 bg-brand-purple text-black hover:bg-white transition-colors flex items-center gap-2 text-sm font-bold">
+                  <Save size={16} /> COMMIT_MILESTONE
                 </button>
               </div>
             </motion.div>
@@ -526,22 +678,22 @@ export default function AdminDashboard() {
 
       {/* ── Delete Confirmation Modal ──────────────── */}
       <AnimatePresence>
-        {postToDelete && (
+        {(postToDelete || milestoneToDelete) && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPostToDelete(null)} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm border-2 border-red-500 bg-black p-6 space-y-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setPostToDelete(null); setMilestoneToDelete(null); }} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm border-2 border-red-500 bg-black p-6 space-y-6 uppercase">
               <div className="flex items-center gap-3 text-red-500">
                 <AlertCircle size={32} />
-                <h2 className="text-xl tracking-widest uppercase">CRITICAL_ACTION_REQUIRED</h2>
+                <h2 className="text-xl tracking-widest">CRITICAL_ACTION_REQUIRED</h2>
               </div>
-              <p className="text-red-200/70 text-sm tracking-widest uppercase leading-relaxed">
+              <p className="text-red-200/70 text-sm tracking-widest leading-relaxed">
                 ARE YOU SURE YOU WANT TO PURGE THIS RESOURCE? THIS ACTION CANNOT BE UNDONE.
               </p>
               <div className="flex gap-3">
-                <button onClick={() => setPostToDelete(null)} className="flex-1 py-2 border-2 border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 tracking-widest text-xs uppercase">
+                <button onClick={() => { setPostToDelete(null); setMilestoneToDelete(null); }} className="flex-1 py-2 border-2 border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 tracking-widest text-xs">
                   ABORT
                 </button>
-                <button onClick={confirmDeletePost} disabled={!!isDeleting} className="flex-1 py-2 bg-red-600 text-white hover:bg-red-500 font-bold tracking-widest text-xs uppercase flex items-center justify-center gap-2">
+                <button onClick={postToDelete ? confirmDeletePost : confirmDeleteMilestone} disabled={!!isDeleting} className="flex-1 py-2 bg-red-600 text-white hover:bg-red-500 font-bold tracking-widest text-xs flex items-center justify-center gap-2">
                   {isDeleting ? <RefreshCw size={14} className="animate-spin" /> : "PURGE_ENTRY"}
                 </button>
               </div>
