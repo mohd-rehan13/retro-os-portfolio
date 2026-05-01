@@ -27,7 +27,7 @@ export class AuthGuard implements CanActivate {
     }
 
     try {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
       
       // Determine which cookie name to use when forwarding to the frontend session API
       let sessionTokenKey = 'next-auth.session-token';
@@ -42,7 +42,7 @@ export class AuthGuard implements CanActivate {
       });
 
       if (!response.ok) {
-        throw new UnauthorizedException();
+        throw new UnauthorizedException(`Session API responded with ${response.status}`);
       }
 
       const session = await response.json();
