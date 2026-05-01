@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+@theme {
+  /* ─── Premium Dark Palette ─────────────────────────
+     Soft violet primary · Warm amber/gold accent
+     Deep indigo-black backgrounds · Lavender text
+     ──────────────────────────────────────────────── */
+  --color-brand-cyan: #a78bfa;                      /* soft violet — primary */
+  --color-brand-purple: #f59e0b;                    /* warm amber/gold — accent */
+  --color-brand-dark: #0f0d1a;                      /* deep indigo-black */
+  --color-brand-darker: #080612;                    /* near-black indigo */
+  --color-brand-surface: rgba(20, 16, 40, 0.7);    /* violet-tinted glass */
+  --color-brand-surface-hover: rgba(40, 30, 80, 0.8);
+  --color-brand-border: #a78bfa;
+  --font-tech: var(--font-tech);
+  --font-vt323: var(--font-vt323);
+}
+
+:root {
+  --background: #080612;
+  --foreground: #e2d9f3;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-tech);
+  overflow: hidden; /* Hide scrollbars for the OS metaphor */
+}
+
+/* Retro Window Styling */
+.os-window {
+  background: rgba(12, 10, 24, 0.96);
+  border: 1.5px solid rgba(167, 139, 250, 0.5);
+  box-shadow:
+    0 0 30px rgba(167, 139, 250, 0.08),
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    inset 0 0 40px rgba(167, 139, 250, 0.03);
+  backdrop-filter: blur(16px);
+  border-radius: 6px;
+}
+
+.os-titlebar {
+  background: linear-gradient(135deg, #a78bfa, #7c3aed);
+  color: #fff;
+  font-family: var(--font-vt323);
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(167, 139, 250, 0.4);
+}
+
+/* CRT Effects — tinted for the violet palette */
+.crt::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background:
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%),
+    linear-gradient(90deg, rgba(167, 139, 250, 0.03), rgba(245, 158, 11, 0.015), rgba(124, 58, 237, 0.03));
+  z-index: 50;
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
+}
+
+@keyframes flicker {
+  0% { opacity: 0.97; }
+  5% { opacity: 0.92; }
+  10% { opacity: 0.97; }
+  15% { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+.crt-flicker {
+  animation: flicker 0.15s infinite;
+}
+
+/* Custom scrollbar — premium violet */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(12, 10, 24, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(167, 139, 250, 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(167, 139, 250, 0.5);
+}
