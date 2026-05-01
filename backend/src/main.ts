@@ -32,7 +32,7 @@ async function bootstrap() {
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'x-session-token'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'x-session-token', 'x-admin-api-key'],
   });
 
   // Global Exception Filter

@@ -17,6 +17,14 @@ export class AuthGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<Request>();
+
+    // 1. Check for Master API Key (Trusted Proxy)
+    const adminApiKey = request.headers['x-admin-api-key'];
+    if (adminApiKey && adminApiKey === process.env.ADMIN_API_KEY) {
+      // Create a mock admin user for the request
+      (request as any)['user'] = { email: 'rehanmohammad1302@gmail.com', role: 'ADMIN' };
+      return true;
+    }
     const sessionToken = 
       request.cookies['next-auth.session-token'] || 
       request.cookies['__Secure-next-auth.session-token'] ||

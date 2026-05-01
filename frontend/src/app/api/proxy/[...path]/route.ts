@@ -36,7 +36,8 @@ async function handleRequest(req: NextRequest, path: string[]) {
     method: req.method,
     headers: {
       'Content-Type': 'application/json',
-      // Explicitly cast to string for TypeScript
+      // Master key for secure server-to-server communication
+      'x-admin-api-key': process.env.ADMIN_API_KEY || '',
       'x-session-token': (token?.accessToken as string) || '',
       'Authorization': `Bearer ${(token?.accessToken as string) || ''}`,
       'cookie': (req.headers.get('cookie') as string) || '',
