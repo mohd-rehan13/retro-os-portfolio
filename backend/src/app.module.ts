@@ -19,7 +19,7 @@ import { AuthGuard } from './auth/guards/auth.guard';
       isGlobal: true,
       validationSchema: Joi.object({
         DATABASE_URL: Joi.string().required(),
-        FRONTEND_URL: Joi.string().uri().default('http://localhost:3000'),
+        FRONTEND_URL: Joi.string().default('http://localhost:3000'),
         PORT: Joi.number().default(4000),
         NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
       }),
