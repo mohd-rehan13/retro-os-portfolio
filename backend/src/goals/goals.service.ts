@@ -5,10 +5,10 @@ import { PrismaService } from '../prisma.service';
 export class GoalsService {
   constructor(private prisma: PrismaService) {}
 
-  async findForUser(userId: string, month?: number, year?: number) {
+  async findForUser(userId?: string, month?: number, year?: number) {
     return this.prisma.goal.findMany({
       where: {
-        userId,
+        ...(userId && { userId }),
         ...(month && { month }),
         ...(year && { year }),
       },
