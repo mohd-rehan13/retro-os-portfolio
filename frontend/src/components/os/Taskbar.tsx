@@ -18,10 +18,10 @@ export function Taskbar() {
 
   const apps = [
     { name: "Root", path: "/", icon: <Terminal size={18} /> },
-    { name: "Blog_Logs", path: "/blog", icon: <Folder size={18} /> },
-    { name: "Goals_Exe", path: "/goals", icon: <Target size={18} /> },
-    { name: "Journey_Sys", path: "/journey", icon: <Route size={18} /> },
-    { name: "Admin_Ctrl", path: "/admin", icon: <LayoutDashboard size={18} /> },
+    { name: "BLOG_LOGS", path: "/blog", icon: <Folder size={18} /> },
+    { name: "GOALS_EXE", path: "/goals", icon: <Target size={18} /> },
+    { name: "JOURNEY_SYS", path: "/journey", icon: <Route size={18} /> },
+    { name: "ADMIN_CTRL", path: "/admin", icon: <LayoutDashboard size={18} /> },
     { name: "Comms", path: "/contact", icon: <Mail size={18} /> },
   ];
 

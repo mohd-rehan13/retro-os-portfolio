@@ -7,7 +7,7 @@ import { Folder, Terminal, Target, Route, LayoutDashboard, Mail } from "lucide-r
 export default function Home() {
   const icons = [
     { name: "BLOG_LOGS.SYS", path: "/blog", icon: <Folder size={40} className="text-brand-cyan mb-2" /> },
-    { name: "GOALS_TRACKER.BAT", path: "/goals", icon: <Target size={40} className="text-brand-cyan mb-2" /> },
+    { name: "GOALS_EXE", path: "/goals", icon: <Target size={40} className="text-brand-cyan mb-2" /> },
     { name: "JOURNEY_SYS.EXE", path: "/journey", icon: <Route size={40} className="text-brand-cyan mb-2" /> },
     { name: "ADMIN_CTRL.EXE", path: "/admin", icon: <LayoutDashboard size={40} className="text-brand-cyan mb-2" /> },
     { name: "COMMS_UPLINK.EXE", path: "/contact", icon: <Mail size={40} className="text-brand-cyan mb-2" /> },

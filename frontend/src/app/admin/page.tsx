@@ -529,9 +529,14 @@ export default function AdminDashboard() {
             </button>
           )}
           {activeTab === "milestones" && (
-            <button onClick={initNewMilestone} className="bg-brand-cyan text-black px-4 py-2 text-sm font-bold tracking-widest hover:bg-white transition-colors uppercase">
-              + NEW_MILESTONE
-            </button>
+            <div className="flex gap-3">
+              <button onClick={() => window.open('/journey', '_blank')} className="border-2 border-brand-purple/50 px-4 py-2 text-sm tracking-widest hover:bg-brand-purple/10 text-brand-purple transition-all uppercase font-bold">
+                VIEW_JOURNEY_SYS.EXE
+              </button>
+              <button onClick={initNewMilestone} className="bg-brand-cyan text-black px-4 py-2 text-sm font-bold tracking-widest hover:bg-white transition-colors uppercase">
+                + NEW_MILESTONE
+              </button>
+            </div>
           )}
           {activeTab === "todos" && (
             <button onClick={initNewTodo} className="bg-brand-cyan text-black px-4 py-2 text-sm font-bold tracking-widest hover:bg-white transition-colors uppercase">
@@ -539,9 +544,14 @@ export default function AdminDashboard() {
             </button>
           )}
           {activeTab === "goals" && (
-            <button onClick={initNewGoal} className="bg-brand-cyan text-black px-4 py-2 text-sm font-bold tracking-widest hover:bg-white transition-colors uppercase">
-              + NEW_GOAL
-            </button>
+            <div className="flex gap-3">
+              <button onClick={() => window.open('/goals', '_blank')} className="border-2 border-brand-purple/50 px-4 py-2 text-sm tracking-widest hover:bg-brand-purple/10 text-brand-purple transition-all uppercase font-bold">
+                VIEW_GOALS_SYS.EXE
+              </button>
+              <button onClick={initNewGoal} className="bg-brand-cyan text-black px-4 py-2 text-sm font-bold tracking-widest hover:bg-white transition-colors uppercase">
+                + NEW_GOAL
+              </button>
+            </div>
           )}
         </motion.div>
       )}

@@ -19,7 +19,7 @@ export function WindowWrapper({ children }: { children: ReactNode }) {
   // Get window title from pathname
   const title = pathname === "/admin" ? "ADMIN_CTRL_PANEL.EXE" 
     : pathname === "/blog" ? "BLOG_LOGS.SYS"
-    : pathname === "/goals" ? "GOALS_TRACKER.BAT"
+    : pathname === "/goals" ? "GOALS_SYS.EXE"
     : pathname === "/journey" ? "JOURNEY_SYS.EXE"
     : pathname === "/contact" ? "COMMS_UPLINK.EXE"
     : pathname.toUpperCase().replace("/", "") + ".EXE";
