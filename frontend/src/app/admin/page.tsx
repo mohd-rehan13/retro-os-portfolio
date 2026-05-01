@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSession } from "next-auth/react";
+import { redirect } from "next/navigation";
 import {
   Users,
   FileText,
@@ -25,7 +27,7 @@ import {
   Info
 } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+const API = "/api/proxy";
 
 type Tab = "overview" | "users" | "posts" | "messages";
 type ToastType = "success" | "error" | "info";
@@ -72,6 +74,7 @@ function StatBar({ label, value, max, color }: { label: string; value: number; m
    ADMIN DASHBOARD
    ═══════════════════════════════════════════════════ */
 export default function AdminDashboard() {
+  const { data: session, status } = useSession();
   const [users, setUsers] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
@@ -119,8 +122,13 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (status === "unauthenticated") {
+      redirect("/login");
+    }
+    if (status === "authenticated") {
+      loadData();
+    }
+  }, [status]);
 
   async function handleRefresh() {
     setRefreshing(true);
