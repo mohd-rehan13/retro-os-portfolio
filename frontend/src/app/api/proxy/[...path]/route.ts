@@ -36,10 +36,10 @@ async function handleRequest(req: NextRequest, path: string[]) {
     method: req.method,
     headers: {
       'Content-Type': 'application/json',
-      // Pass the session token in a custom header that the backend can read
-      'x-session-token': token?.accessToken || '',
-      'Authorization': `Bearer ${token?.accessToken || ''}`,
-      'cookie': req.headers.get('cookie') || '',
+      // Explicitly cast to string for TypeScript
+      'x-session-token': (token?.accessToken as string) || '',
+      'Authorization': `Bearer ${(token?.accessToken as string) || ''}`,
+      'cookie': (req.headers.get('cookie') as string) || '',
     },
     body,
   });
