@@ -7,6 +7,7 @@ import { GoalsModule } from './goals/goals.module';
 import { PostsModule } from './posts/posts.module';
 import { MessagesModule } from './messages/messages.module';
 import { MilestonesModule } from './milestones/milestones.module';
+import { TodosModule } from './todos/todos.module';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -35,7 +36,8 @@ import { AuthGuard } from './auth/guards/auth.guard';
     GoalsModule, 
     PostsModule, 
     MessagesModule,
-    MilestonesModule
+    MilestonesModule,
+    TodosModule
   ],
   controllers: [],
   providers: [

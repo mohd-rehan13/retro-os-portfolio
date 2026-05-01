@@ -29,7 +29,7 @@ import {
 
 const API = "/api/proxy";
 
-type Tab = "overview" | "users" | "posts" | "messages" | "milestones";
+type Tab = "overview" | "users" | "posts" | "messages" | "milestones" | "todos" | "goals";
 type ToastType = "success" | "error" | "info";
 
 interface Toast {
@@ -79,6 +79,8 @@ export default function AdminDashboard() {
   const [messages, setMessages] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
   const [milestones, setMilestones] = useState<any[]>([]);
+  const [todos, setTodos] = useState<any[]>([]);
+  const [goals, setGoals] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -91,8 +93,13 @@ export default function AdminDashboard() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [editingPost, setEditingPost] = useState<any | null>(null);
   const [editingMilestone, setEditingMilestone] = useState<any | null>(null);
+  const [editingTodo, setEditingTodo] = useState<any | null>(null);
+  const [editingGoal, setEditingGoal] = useState<any | null>(null);
+  
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
   const [milestoneToDelete, setMilestoneToDelete] = useState<string | null>(null);
+  const [todoToDelete, setTodoToDelete] = useState<string | null>(null);
+  const [goalToDelete, setGoalToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   /* ── Notification Helper ────────────────────────── */
@@ -107,18 +114,22 @@ export default function AdminDashboard() {
   /* ── Fetch all data ──────────────────────────────── */
   async function loadData() {
     try {
-      const [uRes, mRes, pRes, aRes, miRes] = await Promise.all([
+      const [uRes, mRes, pRes, aRes, miRes, tRes, gRes] = await Promise.all([
         fetch(`${API}/users`, { credentials: "include" }),
         fetch(`${API}/messages`, { credentials: "include" }),
         fetch(`${API}/posts/admin/all`, { credentials: "include" }),
         fetch(`${API}/users/analytics`, { credentials: "include" }),
         fetch(`${API}/milestones`, { credentials: "include" }),
+        fetch(`${API}/todos`, { credentials: "include" }),
+        fetch(`${API}/goals`, { credentials: "include" }),
       ]);
       if (uRes.ok) setUsers(await uRes.json());
       if (mRes.ok) setMessages(await mRes.json());
       if (pRes.ok) setPosts(await pRes.json());
       if (aRes.ok) setAnalytics(await aRes.json());
       if (miRes.ok) setMilestones(await miRes.json());
+      if (tRes.ok) setTodos(await tRes.json());
+      if (gRes.ok) setGoals(await gRes.json());
     } catch (e) {
       notify("CONNECTION_FAILURE: SYSTEM_OFFLINE", "error");
     } finally {
@@ -277,6 +288,76 @@ export default function AdminDashboard() {
     }
   }
 
+  /* ── Todo Handlers ──────────────────────────────── */
+  async function saveTodo(todo: any) {
+    try {
+      const isNew = !todo.id;
+      const url = isNew ? `${API}/todos` : `${API}/todos/${todo.id}`;
+      const method = isNew ? "POST" : "PATCH";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(todo),
+        credentials: "include",
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setTodos(isNew ? [saved, ...todos] : todos.map(t => t.id === todo.id ? saved : t));
+        setEditingTodo(null);
+        notify(isNew ? "TASK_CREATED" : "TASK_UPDATED");
+      }
+    } catch (e) { notify("SAVE_FAILED", "error"); }
+  }
+
+  async function confirmDeleteTodo() {
+    if (!todoToDelete) return;
+    try {
+      const res = await fetch(`${API}/todos/${todoToDelete}`, { method: "DELETE", credentials: "include" });
+      if (res.ok) {
+        setTodos(todos.filter(t => t.id !== todoToDelete));
+        notify("TASK_PURGED");
+      }
+    } catch (e) { notify("DELETE_FAILED", "error"); }
+    finally { setTodoToDelete(null); }
+  }
+
+  async function toggleTodo(todo: any) {
+    await saveTodo({ ...todo, completed: !todo.completed });
+  }
+
+  /* ── Goal Handlers ──────────────────────────────── */
+  async function saveGoal(goal: any) {
+    try {
+      const isNew = !goal.id;
+      const url = isNew ? `${API}/goals` : `${API}/goals/${goal.id}`;
+      const method = isNew ? "POST" : "PATCH";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(goal),
+        credentials: "include",
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setGoals(isNew ? [saved, ...goals] : goals.map(g => g.id === goal.id ? saved : g));
+        setEditingGoal(null);
+        notify(isNew ? "GOAL_INITIALIZED" : "GOAL_UPDATED");
+      }
+    } catch (e) { notify("SAVE_FAILED", "error"); }
+  }
+
+  async function confirmDeleteGoal() {
+    if (!goalToDelete) return;
+    try {
+      const res = await fetch(`${API}/goals/${goalToDelete}`, { method: "DELETE", credentials: "include" });
+      if (res.ok) {
+        setGoals(goals.filter(g => g.id !== goalToDelete));
+        notify("GOAL_REMOVED");
+      }
+    } catch (e) { notify("DELETE_FAILED", "error"); }
+    finally { setGoalToDelete(null); }
+  }
+
   function initNewPost() {
     setEditingPost({
       title: "",
@@ -293,6 +374,22 @@ export default function AdminDashboard() {
       title: "",
       description: "",
       active: false
+    });
+  }
+
+  function initNewTodo() {
+    setEditingTodo({ task: "", completed: false });
+  }
+
+  function initNewGoal() {
+    setEditingGoal({
+      title: "",
+      description: "",
+      status: "IN_PROGRESS",
+      progress: 0,
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear(),
+      userId: session?.user?.id || ""
     });
   }
 
@@ -324,6 +421,24 @@ export default function AdminDashboard() {
     return [...list].sort((a, b) => sortDir === "desc" ? b.year.localeCompare(a.year) : a.year.localeCompare(b.year));
   }, [milestones, search, sortDir]);
 
+  const filteredTodos = useMemo(() => {
+    let list = todos;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter((t) => t.task?.toLowerCase().includes(q));
+    }
+    return [...list].sort((a, b) => sortDir === "desc" ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }, [todos, search, sortDir]);
+
+  const filteredGoals = useMemo(() => {
+    let list = goals;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter((g) => g.title?.toLowerCase().includes(q));
+    }
+    return [...list].sort((a, b) => sortDir === "desc" ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }, [goals, search, sortDir]);
+
   const filteredMessages = useMemo(() => {
     let list = messages;
     if (search) {
@@ -340,6 +455,8 @@ export default function AdminDashboard() {
     { id: "overview", label: "OVERVIEW", icon: <Activity size={16} />, count: 0 },
     { id: "users", label: "USERS", icon: <Users size={16} />, count: users.length },
     { id: "posts", label: "POSTS", icon: <FileText size={16} />, count: posts.length },
+    { id: "goals", label: "GOALS", icon: <TrendingUp size={16} />, count: goals.length },
+    { id: "todos", label: "TODOS", icon: <CheckCircle2 size={16} />, count: todos.length },
     { id: "milestones", label: "JOURNEY", icon: <TrendingUp size={16} />, count: milestones.length },
     { id: "messages", label: "MESSAGES", icon: <Mail size={16} />, count: messages.length },
   ];
@@ -416,6 +533,16 @@ export default function AdminDashboard() {
               + NEW_MILESTONE
             </button>
           )}
+          {activeTab === "todos" && (
+            <button onClick={initNewTodo} className="bg-brand-cyan text-black px-4 py-2 text-sm font-bold tracking-widest hover:bg-white transition-colors uppercase">
+              + NEW_TASK
+            </button>
+          )}
+          {activeTab === "goals" && (
+            <button onClick={initNewGoal} className="bg-brand-cyan text-black px-4 py-2 text-sm font-bold tracking-widest hover:bg-white transition-colors uppercase">
+              + NEW_GOAL
+            </button>
+          )}
         </motion.div>
       )}
 
@@ -432,15 +559,15 @@ export default function AdminDashboard() {
                 {[
                   { label: "USERS.COUNT", value: analytics?.totalUsers || users.length, icon: <Users size={20} />, accent: "text-brand-cyan" },
                   { label: "POSTS.TOTAL", value: analytics?.totalPosts || posts.length, icon: <FileText size={20} />, accent: "text-brand-cyan" },
-                  { label: "JOURNEY.LOGS", value: milestones.length, icon: <TrendingUp size={20} />, accent: "text-brand-cyan" },
-                  { label: "MSGS.INBOX", value: analytics?.totalMessages || messages.length, icon: <Mail size={20} />, accent: "text-brand-purple" },
+                  { label: "GOALS.ACTIVE", value: goals.length, icon: <TrendingUp size={20} />, accent: "text-brand-cyan" },
+                  { label: "TODOS.PENDING", value: todos.filter(t => !t.completed).length, icon: <CheckCircle2 size={20} />, accent: "text-brand-purple" },
                 ].map((s, i) => (
                   <div key={i} className="border-2 border-brand-cyan/30 p-4 bg-black/50 hover:border-brand-cyan transition-all group">
-                    <div className="flex items-center justify-between mb-3 text-brand-cyan/50 text-xs tracking-widest">
+                    <div className="flex items-center justify-between mb-3 text-brand-cyan/50 text-xs tracking-widest uppercase">
                       <span>{s.label}</span>
                       <span className="group-hover:text-brand-cyan/80 transition-colors">{s.icon}</span>
                     </div>
-                    <div className={`text-3xl ${s.accent}`}>{s.value === "ONLINE" ? <span className="flex items-center gap-2"><span className="w-2 h-2 bg-brand-cyan rounded-full animate-pulse" /> ONLINE</span> : s.value}</div>
+                    <div className={`text-3xl ${s.accent}`}>{s.value}</div>
                   </div>
                 ))}
               </div>
@@ -553,6 +680,70 @@ export default function AdminDashboard() {
                     <button onClick={() => setMilestoneToDelete(m.id)} className="p-2 border border-red-900/50 hover:border-red-500 hover:bg-red-500/10 text-red-500/70 hover:text-red-500 transition-colors">
                       <Trash2 size={16} />
                     </button>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          )}
+
+          {/* TODOS */}
+          {activeTab === "todos" && (
+            <motion.div key="todos" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
+              <div className="text-brand-cyan/50 text-xs tracking-widest uppercase">TODO_TASKS.DB — {filteredTodos.length} RECORDS</div>
+              {filteredTodos.map((t, i) => (
+                <div key={t.id || i} className="border-2 border-brand-cyan/20 p-4 bg-black/50 hover:border-brand-cyan/40 transition-all flex justify-between items-center gap-4">
+                  <div className="flex items-center gap-4 flex-1">
+                    <button onClick={() => toggleTodo(t)} className={`w-6 h-6 border-2 flex items-center justify-center transition-all ${t.completed ? "bg-brand-cyan border-brand-cyan text-black" : "border-brand-cyan/40 text-transparent hover:border-brand-cyan"}`}>
+                      {t.completed && <CheckCircle2 size={14} />}
+                    </button>
+                    <span className={`text-lg transition-all uppercase ${t.completed ? "text-brand-cyan/30 line-through" : "text-brand-cyan"}`}>{t.task}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setEditingTodo(t)} className="p-2 border border-brand-cyan/30 hover:border-brand-cyan hover:bg-brand-cyan/10 text-brand-cyan transition-colors">
+                      <Edit3 size={16} />
+                    </button>
+                    <button onClick={() => setTodoToDelete(t.id)} className="p-2 border border-red-900/50 hover:border-red-500 hover:bg-red-500/10 text-red-500/70 hover:text-red-500 transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          )}
+
+          {/* GOALS */}
+          {activeTab === "goals" && (
+            <motion.div key="goals" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
+              <div className="text-brand-cyan/50 text-xs tracking-widest uppercase">GOAL_OBJECTIVES.DB — {filteredGoals.length} RECORDS</div>
+              {filteredGoals.map((g, i) => (
+                <div key={g.id || i} className="border-2 border-brand-cyan/20 p-4 bg-black/50 hover:border-brand-cyan/40 transition-all space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div className="uppercase">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className="text-lg text-brand-cyan truncate">&gt; {g.title}</h3>
+                        <span className={`text-[10px] px-1.5 border ${g.status === "COMPLETED" ? "border-brand-cyan/40 text-brand-cyan" : "border-brand-purple/40 text-brand-purple"}`}>
+                          {g.status}
+                        </span>
+                      </div>
+                      <div className="text-brand-cyan/40 text-xs">{g.month}/{g.year} — {g.description}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => setEditingGoal(g)} className="p-2 border border-brand-cyan/30 hover:border-brand-cyan hover:bg-brand-cyan/10 text-brand-cyan transition-colors">
+                        <Edit3 size={16} />
+                      </button>
+                      <button onClick={() => setGoalToDelete(g.id)} className="p-2 border border-red-900/50 hover:border-red-500 hover:bg-red-500/10 text-red-500/70 hover:text-red-500 transition-colors">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] text-brand-cyan/40 uppercase">
+                      <span>PROGRESS</span>
+                      <span>{g.progress}%</span>
+                    </div>
+                    <div className="h-1.5 bg-black border border-brand-cyan/20">
+                      <div className="h-full bg-brand-cyan transition-all duration-500" style={{ width: `${g.progress}%` }} />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -676,11 +867,99 @@ export default function AdminDashboard() {
         )}
       </AnimatePresence>
 
+      {/* ── Edit/Create Todo Modal ──────────────────── */}
+      <AnimatePresence>
+        {editingTodo && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingTodo(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative w-full max-w-md bg-brand-dark border-2 border-brand-cyan shadow-[0_0_50px_rgba(167,139,250,0.2)] overflow-hidden rounded-lg">
+              <div className="bg-brand-cyan text-black px-4 py-2 flex items-center justify-between font-vt323 tracking-widest text-lg uppercase">
+                <span>&gt; {editingTodo.id ? "EDIT_TASK" : "CREATE_TASK"}</span>
+                <button onClick={() => setEditingTodo(null)}><X size={18} /></button>
+              </div>
+              <div className="p-6 space-y-4 uppercase">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-brand-cyan/60 tracking-widest">TASK_CONTENT</label>
+                  <input type="text" value={editingTodo.task} onChange={(e) => setEditingTodo({...editingTodo, task: e.target.value})} className="w-full bg-black/40 border border-brand-cyan/30 p-2 text-brand-cyan focus:outline-none focus:border-brand-cyan" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setEditingTodo({...editingTodo, completed: !editingTodo.completed})} className={`w-5 h-5 border flex items-center justify-center ${editingTodo.completed ? "bg-brand-cyan border-brand-cyan text-black" : "border-brand-cyan/30 text-transparent"}`}>
+                    <CheckCircle2 size={12} />
+                  </button>
+                  <span className="text-sm tracking-widest text-brand-cyan/80">COMPLETED</span>
+                </div>
+              </div>
+              <div className="p-4 bg-brand-cyan/5 border-t border-brand-cyan/20 flex justify-end gap-3">
+                <button onClick={() => setEditingTodo(null)} className="px-6 py-2 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 uppercase text-sm">CANCEL</button>
+                <button onClick={() => saveTodo(editingTodo)} className="px-6 py-2 bg-brand-cyan text-black hover:bg-white transition-colors flex items-center gap-2 text-sm font-bold uppercase">
+                  <Save size={16} /> COMMIT_TASK
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Edit/Create Goal Modal ──────────────────── */}
+      <AnimatePresence>
+        {editingGoal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingGoal(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative w-full max-w-xl bg-brand-dark border-2 border-brand-cyan shadow-[0_0_50px_rgba(167,139,250,0.2)] overflow-hidden rounded-lg">
+              <div className="bg-brand-cyan text-black px-4 py-2 flex items-center justify-between font-vt323 tracking-widest text-lg uppercase">
+                <span>&gt; {editingGoal.id ? "EDIT_GOAL" : "INITIALIZE_GOAL"}</span>
+                <button onClick={() => setEditingGoal(null)}><X size={18} /></button>
+              </div>
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar uppercase">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-brand-cyan/60 tracking-widest">GOAL_TITLE</label>
+                  <input type="text" value={editingGoal.title} onChange={(e) => setEditingGoal({...editingGoal, title: e.target.value})} className="w-full bg-black/40 border border-brand-cyan/30 p-2 text-brand-cyan focus:outline-none focus:border-brand-cyan" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-brand-cyan/60 tracking-widest">MONTH (1-12)</label>
+                    <input type="number" value={editingGoal.month} onChange={(e) => setEditingGoal({...editingGoal, month: parseInt(e.target.value)})} className="w-full bg-black/40 border border-brand-cyan/30 p-2 text-brand-cyan focus:outline-none focus:border-brand-cyan" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-brand-cyan/60 tracking-widest">YEAR</label>
+                    <input type="number" value={editingGoal.year} onChange={(e) => setEditingGoal({...editingGoal, year: parseInt(e.target.value)})} className="w-full bg-black/40 border border-brand-cyan/30 p-2 text-brand-cyan focus:outline-none focus:border-brand-cyan" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-brand-cyan/60 tracking-widest">STATUS</label>
+                    <select value={editingGoal.status} onChange={(e) => setEditingGoal({...editingGoal, status: e.target.value})} className="w-full bg-black/40 border border-brand-cyan/30 p-2 text-brand-cyan focus:outline-none focus:border-brand-cyan">
+                      <option value="IN_PROGRESS">IN_PROGRESS</option>
+                      <option value="COMPLETED">COMPLETED</option>
+                      <option value="CANCELLED">CANCELLED</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-brand-cyan/60 tracking-widest">PROGRESS ({editingGoal.progress}%)</label>
+                    <input type="range" min="0" max="100" value={editingGoal.progress} onChange={(e) => setEditingGoal({...editingGoal, progress: parseInt(e.target.value)})} className="w-full h-8 accent-brand-cyan bg-black/40" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-brand-cyan/60 tracking-widest">DESCRIPTION</label>
+                  <textarea rows={3} value={editingGoal.description} onChange={(e) => setEditingGoal({...editingGoal, description: e.target.value})} className="w-full bg-black/40 border border-brand-cyan/30 p-2 text-brand-cyan focus:outline-none focus:border-brand-cyan" />
+                </div>
+              </div>
+              <div className="p-4 bg-brand-cyan/5 border-t border-brand-cyan/20 flex justify-end gap-3">
+                <button onClick={() => setEditingGoal(null)} className="px-6 py-2 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 uppercase text-sm">CANCEL</button>
+                <button onClick={() => saveGoal(editingGoal)} className="px-6 py-2 bg-brand-cyan text-black hover:bg-white transition-colors flex items-center gap-2 text-sm font-bold uppercase">
+                  <Save size={16} /> COMMIT_GOAL
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ── Delete Confirmation Modal ──────────────── */}
       <AnimatePresence>
-        {(postToDelete || milestoneToDelete) && (
+        {(postToDelete || milestoneToDelete || todoToDelete || goalToDelete) && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setPostToDelete(null); setMilestoneToDelete(null); }} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setPostToDelete(null); setMilestoneToDelete(null); setTodoToDelete(null); setGoalToDelete(null); }} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm border-2 border-red-500 bg-black p-6 space-y-6 uppercase">
               <div className="flex items-center gap-3 text-red-500">
                 <AlertCircle size={32} />
@@ -690,10 +969,15 @@ export default function AdminDashboard() {
                 ARE YOU SURE YOU WANT TO PURGE THIS RESOURCE? THIS ACTION CANNOT BE UNDONE.
               </p>
               <div className="flex gap-3">
-                <button onClick={() => { setPostToDelete(null); setMilestoneToDelete(null); }} className="flex-1 py-2 border-2 border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 tracking-widest text-xs">
+                <button onClick={() => { setPostToDelete(null); setMilestoneToDelete(null); setTodoToDelete(null); setGoalToDelete(null); }} className="flex-1 py-2 border-2 border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/10 tracking-widest text-xs">
                   ABORT
                 </button>
-                <button onClick={postToDelete ? confirmDeletePost : confirmDeleteMilestone} disabled={!!isDeleting} className="flex-1 py-2 bg-red-600 text-white hover:bg-red-500 font-bold tracking-widest text-xs flex items-center justify-center gap-2">
+                <button onClick={() => {
+                  if (postToDelete) confirmDeletePost();
+                  else if (milestoneToDelete) confirmDeleteMilestone();
+                  else if (todoToDelete) confirmDeleteTodo();
+                  else if (goalToDelete) confirmDeleteGoal();
+                }} disabled={!!isDeleting} className="flex-1 py-2 bg-red-600 text-white hover:bg-red-500 font-bold tracking-widest text-xs flex items-center justify-center gap-2">
                   {isDeleting ? <RefreshCw size={14} className="animate-spin" /> : "PURGE_ENTRY"}
                 </button>
               </div>

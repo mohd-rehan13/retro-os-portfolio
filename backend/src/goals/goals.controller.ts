@@ -13,8 +13,10 @@ export class GoalsController {
   @Get()
   @Throttle({ default: { limit: 100, ttl: 60000 } }) // Balanced
   async getGoals(@CurrentUser() user: any, @Query('month') month?: string, @Query('year') year?: string) {
+    // If no user session, return all goals (for public view)
+    const userId = user?.id || user?.email;
     return this.goalsService.findForUser(
-      user?.id || user?.email, 
+      userId, 
       month ? parseInt(month, 10) : undefined,
       year ? parseInt(year, 10) : undefined,
     );
