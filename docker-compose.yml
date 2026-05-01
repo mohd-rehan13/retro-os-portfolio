@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: retro_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: retro_os
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: retro_backend
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: postgresql://postgres:password@db:5432/retro_os?schema=public
+      FRONTEND_URL: http://mohdrehan.dpdns.org
+      PORT: 4000
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    container_name: retro_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://mohdrehan.dpdns.org:4000/api/v1
+      NEXTAUTH_URL: http://mohdrehan.dpdns.org
+      AUTH_SECRET: retro_secret_key_12345
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

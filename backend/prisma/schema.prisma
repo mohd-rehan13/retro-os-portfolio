@@ -1,0 +1,71 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum GoalStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  passwordHash  String?   // If not using OAuth exclusively
+  role          Role      @default(MEMBER)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  goals         Goal[]
+  messages      Message[]
+}
+
+model Goal {
+  id            String     @id @default(uuid())
+  title         String
+  description   String?
+  status        GoalStatus @default(IN_PROGRESS)
+  progress      Int        @default(0) // 0 to 100
+  month         Int        // 1-12
+  year          Int
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model BlogPost {
+  id            String    @id @default(uuid())
+  title         String
+  slug          String    @unique
+  content       String    @db.Text
+  category      String
+  readTime      String
+  published     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Message {
+  id            String    @id @default(uuid())
+  name          String
+  email         String
+  content       String    @db.Text
+  isRead        Boolean   @default(false)
+  userId        String?   // Optional: if message is from a registered user
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+}
