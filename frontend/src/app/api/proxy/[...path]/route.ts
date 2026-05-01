@@ -3,20 +3,24 @@ import { getToken } from 'next-auth/jwt';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-export async function GET(req: NextRequest, { params }: { params: { path: string[] } }) {
-  return handleRequest(req, params.path);
+export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const { path } = await params;
+  return handleRequest(req, path);
 }
 
-export async function POST(req: NextRequest, { params }: { params: { path: string[] } }) {
-  return handleRequest(req, params.path);
+export async function POST(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const { path } = await params;
+  return handleRequest(req, path);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { path: string[] } }) {
-  return handleRequest(req, params.path);
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const { path } = await params;
+  return handleRequest(req, path);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { path: string[] } }) {
-  return handleRequest(req, params.path);
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const { path } = await params;
+  return handleRequest(req, path);
 }
 
 async function handleRequest(req: NextRequest, path: string[]) {
